@@ -7,6 +7,7 @@ import tempfile
 import json
 import time
 from datetime import datetime
+import scipy.io.wavfile as wav
 import logging
 import warnings
 from urllib3.exceptions import InsecureRequestWarning
@@ -28,16 +29,6 @@ logger = logging.getLogger(__name__)
 DEEPSEEK_API_KEY = "sk-e07024fd50f74c058a961512fcdabfa7"
 CHAT_API_URL = "https://api.deepseek.com/v1/chat/completions"
 
-# Vosk模型配置
-VOSK_MODEL_URL = "https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip"
-VOSK_MODEL_ZIP = "vosk-model-small-cn-0.22.zip"
-VOSK_MODEL_DIR = "vosk-model-small-cn-0.22"
-
-# 更新为您的 FFmpeg 路径
-FFMPEG_BIN_DIR = r"C:\Users\jl152\ffmpeg-7.1.1-full_build\bin"
-FFMPEG_PATH = os.path.join(FFMPEG_BIN_DIR, "ffmpeg.exe")
-FFPROBE_PATH = os.path.join(FFMPEG_BIN_DIR, "ffprobe.exe")
-
 # 全局变量
 meeting_data = {
     "transcript": "",
@@ -46,6 +37,16 @@ meeting_data = {
     "key_points": [],
     "action_items": []
 }
+
+# Vosk模型配置
+VOSK_MODEL_URL = "https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip"
+VOSK_MODEL_ZIP = "vosk-model-small-cn-0.22.zip"
+VOSK_MODEL_DIR = "vosk-model-small-cn-0.22"
+
+# 更新为您的 FFmpeg 路径
+FFMPEG_BIN_DIR = r"C:\Users\liuziyu\ffmpeg-2025-07-01-git-11d1b71c31-full_build\bin"
+FFMPEG_PATH = os.path.join(FFMPEG_BIN_DIR, "ffmpeg.exe")
+FFPROBE_PATH = os.path.join(FFMPEG_BIN_DIR, "ffprobe.exe")
 
 def check_ffmpeg_installed():
     """检查系统是否安装了FFmpeg"""
@@ -642,6 +643,9 @@ with gr.Blocks(theme=gr.themes.Soft(), title="DeepSeek会议助手") as app:
     )
 
 if __name__ == "__main__":
+    # 禁用SSL警告
+    warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+    
     # 打印配置信息
     print(f"DeepSeek文本API端点: {CHAT_API_URL}")
     print(f"FFmpeg路径: {FFMPEG_PATH}")
@@ -658,4 +662,5 @@ if __name__ == "__main__":
         print("✓ 所有依赖项已准备就绪")
     
     # 启动应用
-    app.launch(server_name="0.0.0.0", server_port=7860)
+    app.launch(server_name="0.0.0.0", server_port=51551)
+   
