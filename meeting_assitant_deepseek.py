@@ -7,6 +7,13 @@ import tempfile
 import json
 import time
 from datetime import datetime
+import logging
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# 配置日志
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # DeepSeek API 配置
 DEEPSEEK_API_KEY = "your_api_key_here"  # 替换为您的API密钥
@@ -23,6 +30,19 @@ meeting_data = {
     "action_items": []
 }
 
+def create_retry_session():
+    """创建带重试机制的请求会话"""
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["POST"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    return session
+
 def transcribe_audio(audio_path):
     """使用DeepSeek语音识别API转写音频"""
     headers = {
@@ -30,18 +50,27 @@ def transcribe_audio(audio_path):
         "Content-Type": "multipart/form-data"
     }
     
-    with open(audio_path, "rb") as audio_file:
-        files = {"file": (os.path.basename(audio_path), audio_file, "audio/wav")}
-        data = {"model": "deepseek-vl"}
+    try:
+        session = create_retry_session()
+        with open(audio_path, "rb") as audio_file:
+            files = {"file": (os.path.basename(audio_path), audio_file, "audio/wav")}
+            data = {"model": "deepseek-vl"}
+            response = session.post(
+                SPEECH_API_URL, 
+                headers=headers, 
+                files=files, 
+                data=data,
+                timeout=30
+            )
         
-        response = requests.post(SPEECH_API_URL, headers=headers, files=files, data=data)
-    
-    if response.status_code == 200:
-        result = response.json()
-        return result.get("text", "")
-    else:
-        print(f"语音识别失败: {response.status_code} - {response.text}")
-        return ""
+        if response.status_code == 200:
+            return response.json().get("text", "")
+        else:
+            logger.error(f"语音识别失败: {response.status_code} - {response.text[:200]}")
+            return f"语音识别失败: {response.status_code} - {response.text[:200]}"
+    except Exception as e:
+        logger.error(f"请求异常: {str(e)}")
+        return f"请求异常: {str(e)}"
 
 def deepseek_chat(prompt, system_prompt="你是一个专业的AI助手", model="deepseek-chat"):
     """调用DeepSeek文本生成API"""
@@ -60,22 +89,32 @@ def deepseek_chat(prompt, system_prompt="你是一个专业的AI助手", model="
         "max_tokens": 2000
     }
     
-    response = requests.post(CHAT_API_URL, headers=headers, json=payload)
-    
-    if response.status_code == 200:
-        result = response.json()
-        return result["choices"][0]["message"]["content"]
-    else:
-        print(f"文本生成失败: {response.status_code} - {response.text}")
-        return ""
+    try:
+        session = create_retry_session()
+        response = session.post(
+            CHAT_API_URL, 
+            headers=headers, 
+            json=payload, 
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+        else:
+            logger.error(f"文本生成失败: {response.status_code} - {response.text[:200]}")
+            return f"文本生成失败: {response.status_code} - {response.text[:200]}"
+    except Exception as e:
+        logger.error(f"请求异常: {str(e)}")
+        return f"请求异常: {str(e)}"
 
 def record_audio(duration=60, sample_rate=16000):
     """录制音频"""
-    print(f"开始录音，时长: {duration}秒...")
+    logger.info(f"开始录音，时长: {duration}秒...")
     audio = sd.rec(int(duration * sample_rate), 
                    samplerate=sample_rate, channels=1)
     sd.wait()
-    print("录音结束")
+    logger.info("录音结束")
     
     # 保存临时文件
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
@@ -126,6 +165,7 @@ def process_meeting(audio_path=None, live_audio=None):
     """
     
     summary = deepseek_chat(summary_prompt, "你是一个专业的会议记录助手")
+    meeting_data["summary"] = summary
     return transcript, summary
 
 def generate_news_report(style="正式报道"):
