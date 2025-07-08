@@ -10,15 +10,6 @@ from datetime import datetime
 import logging
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import wave
-import contextlib
-import subprocess
-import sys
-import zipfile
-import urllib.request
-import shutil
-import warnings
-from urllib3.exceptions import InsecureRequestWarning
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -49,140 +40,6 @@ meeting_data = {
     "key_points": [],
     "action_items": []
 }
-
-def check_ffmpeg_installed():
-    """检查系统是否安装了FFmpeg"""
-    # 检查直接指定的路径是否存在
-    if os.path.exists(FFMPEG_PATH) and os.path.exists(FFPROBE_PATH):
-        logger.info(f"找到FFmpeg可执行文件: {FFMPEG_PATH}")
-        return True
-    
-    logger.warning(f"在指定路径未找到FFmpeg: {FFMPEG_PATH}")
-    return False
-
-# 新增：转换音频格式为WAV
-def convert_to_wav(input_path):
-    """将任意音频格式转换为WAV格式"""
-    if not input_path:
-        return None
-    
-    # 已经是WAV格式，直接返回
-    if input_path.lower().endswith('.wav'):
-        return input_path
-    
-    # 创建临时WAV文件
-    wav_path = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
-    
-    try:
-        # 使用FFmpeg进行转换
-        cmd = [
-            FFMPEG_PATH,        # 使用直接指定的路径
-            '-i', input_path,   # 输入文件
-            '-ac', '1',         # 单声道
-            '-ar', '16000',     # 16kHz采样率
-            '-y',               # 覆盖输出文件
-            wav_path            # 输出文件
-        ]
-        
-        # 在Windows上隐藏控制台窗口
-        startupinfo = None
-        if sys.platform.startswith('win'):
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = 0
-        
-        result = subprocess.run(cmd, 
-                              stdout=subprocess.PIPE, 
-                              stderr=subprocess.PIPE,
-                              text=True,
-                              startupinfo=startupinfo)
-        
-        if result.returncode != 0:
-            logger.error(f"音频转换失败: {result.stderr}")
-            return None
-        
-        logger.info(f"音频转换成功: {input_path} -> {wav_path}")
-        return wav_path
-    except Exception as e:
-        logger.error(f"音频转换异常: {str(e)}")
-        return None
-
-def fix_model_directory():
-    """修复模型目录结构"""
-    # 检查是否存在嵌套目录
-    nested_dir = os.path.join(VOSK_MODEL_DIR, "vosk-model-small-cn-0.22")
-    
-    if os.path.exists(nested_dir):
-        logger.info(f"检测到嵌套目录: {nested_dir}")
-        logger.info("正在修复目录结构...")
-        
-        # 移动所有文件到父目录
-        for item in os.listdir(nested_dir):
-            src = os.path.join(nested_dir, item)
-            dst = os.path.join(VOSK_MODEL_DIR, item)
-            
-            # 如果目标已存在，先删除
-            if os.path.exists(dst):
-                if os.path.isdir(dst):
-                    shutil.rmtree(dst)
-                else:
-                    os.remove(dst)
-            
-            shutil.move(src, dst)
-        
-        # 删除空的嵌套目录
-        shutil.rmtree(nested_dir)
-        logger.info("目录结构修复完成")
-    else:
-        logger.info("目录结构正常，无需修复")
-
-def download_and_extract_model():
-    """下载并解压Vosk中文模型"""
-    # 检查模型目录是否存在
-    if os.path.exists(VOSK_MODEL_DIR):
-        logger.info(f"Vosk模型已存在: {VOSK_MODEL_DIR}")
-        fix_model_directory()  # 确保目录结构正确
-        return True
-    
-    logger.info(f"开始下载Vosk中文模型: {VOSK_MODEL_URL}")
-    
-    try:
-        # 下载模型
-        urllib.request.urlretrieve(VOSK_MODEL_URL, VOSK_MODEL_ZIP)
-        logger.info(f"模型下载完成: {VOSK_MODEL_ZIP}")
-        
-        # 解压模型
-        with zipfile.ZipFile(VOSK_MODEL_ZIP, 'r') as zip_ref:
-            zip_ref.extractall(".")
-        logger.info(f"模型解压完成: {VOSK_MODEL_DIR}")
-        
-        # 修复目录结构
-        fix_model_directory()
-        
-        # 删除ZIP文件
-        os.remove(VOSK_MODEL_ZIP)
-        logger.info(f"已删除临时文件: {VOSK_MODEL_ZIP}")
-        
-        return True
-    except Exception as e:
-        logger.error(f"模型下载或解压失败: {str(e)}")
-        return False
-
-def install_vosk():
-    """安装Vosk库"""
-    try:
-        import vosk
-        logger.info("Vosk库已安装")
-        return True
-    except ImportError:
-        logger.info("正在安装Vosk库...")
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "vosk"])
-            logger.info("Vosk库安装成功")
-            return True
-        except Exception as e:
-            logger.error(f"Vosk库安装失败: {str(e)}")
-            return False
 
 def create_retry_session():
     """创建带重试机制的请求会话"""
@@ -645,23 +502,4 @@ with gr.Blocks(theme=gr.themes.Soft(), title="DeepSeek会议助手") as app:
     )
 
 if __name__ == "__main__":
-    # 禁用SSL警告
-    warnings.filterwarnings("ignore", category=InsecureRequestWarning)
-    
-    # 打印配置信息
-    print(f"DeepSeek文本API端点: {CHAT_API_URL}")
-    print(f"FFmpeg路径: {FFMPEG_PATH}")
-    print(f"FFprobe路径: {FFPROBE_PATH}")
-    
-    # 检查并安装依赖
-    print("正在检查依赖项...")
-    if not check_dependencies():
-        print("⚠️ 依赖项检查失败，请确保:")
-        print(f"1. FFmpeg已安装在: {FFMPEG_PATH}")
-        print("2. Vosk模型已正确下载和解压")
-        print("3. Vosk库已安装 (pip install vosk)")
-    else:
-        print("✓ 所有依赖项已准备就绪")
-    
-    # 启动应用
-    app.launch(server_name="0.0.0.0", server_port=7860)
+    app.launch()
