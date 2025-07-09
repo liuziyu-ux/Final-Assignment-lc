@@ -20,8 +20,8 @@ DeepSeek会议助手是一个基于AI的会议记录工具，能够自动转录�
 
 ### 1. 克隆仓库
 ```bash
-git clone https://github.com/yourusername/deepseek-meeting-assistant.git
-cd deepseek-meeting-assistant
+git clone https://github.com/liuziyu-ux/Final-Assignment-lc.git
+cd Final-Assignment-lc
 ```
 
 ### 2. 安装Python依赖
@@ -42,7 +42,7 @@ pip install -r requirements.txt
 ### 4. 配置DeepSeek API密钥
 1. 访问 [DeepSeek官网](https://platform.deepseek.com/) 注册账号
 2. 获取API密钥
-3. 编辑 `meeting_assistant.py` 文件
+3. 编辑 `meeting_assistant_deepseek.py` 文件
 4. 将第31行的API密钥替换为您自己的密钥：
    ```python
    DEEPSEEK_API_KEY = "您的API密钥"
@@ -50,7 +50,7 @@ pip install -r requirements.txt
 
 ## 运行程序
 ```bash
-python meeting_assistant.py
+python meeting_assistant_deepseek.py
 ```
 
 程序启动后会自动下载Vosk中文语音识别模型（约200MB），请确保网络连接正常。
