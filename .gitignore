@@ -1,0 +1,47 @@
+# Python 相关
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# 环境文件
+.env
+.venv/
+venv/
+env/
+
+# 模型文件
+vosk-model-small-cn-0.22/
+vosk-model-small-cn-0.22.zip
+
+# 临时文件
+*.tmp
+*.temp
+*.wav
+*.mp3
+*.m4a
+temp/
+
+# 日志文件
+*.log
+logs/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE 文件
+.idea/
+.vscode/
+*.code-workspace
+
+# 大文件/二进制文件
+*.large
+*.bin
+
+# FFmpeg 二进制（如果包含在项目中）
+ffmpeg-*/
